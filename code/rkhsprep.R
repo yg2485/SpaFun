@@ -515,3 +515,51 @@ Z = Z1 * Z2
   return(t(fpca.obj$U) %*% Z)
 }
 
+
+
+
+
+
+
+
+################## helper functions ##################
+
+# normalize
+normalization22 <- function(counts) { 
+  varx = apply(counts, 2, var)
+  meanx = apply(counts, 2, mean)
+  phi = coef(nls(varx ~ meanx + phi * meanx^2, start = list(phi = 1)))
+  
+  ## regress out log total counts
+  norm_counts <- log(counts + 1/(2 * phi))
+  total_counts <- apply(counts, 1, sum)
+  
+  res_norm_counts <- apply(norm_counts, 2, function(x){resid(lm(x ~ log(total_counts)))} )
+  
+  return(res_norm_counts)
+}
+
+filter_count <- function(count, sample_info, min_total = 10,min_percentage = 0.1){
+  gene_num <- ncol(count)
+  sample_num <- nrow(count)
+  if(sum(rowSums(count) < min_total) == 0){
+    if (sum(colSums(count == 0) > (1-min_percentage)*sample_num) > 0){
+      sample_f <- sample_info
+      count_f <- count[,-(which(colSums(count == 0) > (1-min_percentage)*sample_num))]
+    }
+    else{
+      sample_f <- sample_info
+      count_f <- count
+    }}
+  else{
+    if (sum(colSums(count[-which(rowSums(count)<min_total),] == 0) > (1-min_percentage)*sample_num) > 0){
+      sample_f <- sample_info[-which(rowSums(count)<min_total),]
+      count_f <- count[-which(rowSums(count)<min_total),-(which(colSums(count[-which(rowSums(count)<min_total),] == 0) > (1-min_percentage)*sample_num))]
+    }
+    else{
+      sample_f <- sample_info[-which(rowSums(count)<min_total),]
+      count_f <- count[-which(rowSums(count)<min_total),]
+    }
+  }
+  return(list(sample_f,count_f))
+}
